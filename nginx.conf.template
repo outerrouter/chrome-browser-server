@@ -44,6 +44,9 @@ http {
         }
 
         location /websockify {
+            # Browser WebSocket handshakes cannot reliably carry nginx Basic
+            # Auth credentials. VNC itself still requires SE_VNC_PASSWORD.
+            auth_basic off;
             proxy_pass http://127.0.0.1:7900/websockify;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
