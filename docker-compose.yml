@@ -1,0 +1,16 @@
+services:
+  chrome-server:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      BROWSER_PANEL_USER: "browser"
+      BROWSER_PANEL_PASSWORD: "${BROWSER_PANEL_PASSWORD:?Set BROWSER_PANEL_PASSWORD in your shell or .env}"
+      SE_VNC_PASSWORD: "${SE_VNC_PASSWORD:-${BROWSER_PANEL_PASSWORD}}"
+      KEEPALIVE_URLS: "${KEEPALIVE_URLS:-https://example.com}"
+      KEEPALIVE_INTERVAL_SECONDS: "${KEEPALIVE_INTERVAL_SECONDS:-60}"
+      BROWSER_DURATION_MINUTES: "${BROWSER_DURATION_MINUTES:-0}"
+      SE_SCREEN_WIDTH: "${SE_SCREEN_WIDTH:-1440}"
+      SE_SCREEN_HEIGHT: "${SE_SCREEN_HEIGHT:-900}"
+    shm_size: "2gb"
+    restart: unless-stopped

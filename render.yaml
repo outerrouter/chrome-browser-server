@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: chrome-browser-server
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /status
+    envVars:
+      - key: BROWSER_PANEL_USER
+        value: browser
+      - key: BROWSER_PANEL_PASSWORD
+        sync: false
+      - key: SE_VNC_PASSWORD
+        sync: false
+      - key: KEEPALIVE_URLS
+        value: https://example.com
+      - key: KEEPALIVE_INTERVAL_SECONDS
+        value: "60"
+      - key: BROWSER_DURATION_MINUTES
+        value: "0"
+      - key: SE_SCREEN_WIDTH
+        value: "1440"
+      - key: SE_SCREEN_HEIGHT
+        value: "900"
