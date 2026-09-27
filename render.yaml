@@ -5,7 +5,7 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /status
+    healthCheckPath: /healthz
     envVars:
       - key: BROWSER_PANEL_USER
         value: browser

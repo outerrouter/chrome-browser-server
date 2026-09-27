@@ -27,6 +27,10 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+echo "[start] starting nginx with HTTP basic-auth protection"
+nginx -c /tmp/nginx.conf -g 'daemon off;' &
+NGINX_PID=$!
+
 echo "[start] starting Selenium/Chrome stack"
 /opt/bin/entry_point.sh &
 SELENIUM_PID=$!
@@ -40,10 +44,6 @@ if ! curl -fsS http://127.0.0.1:4444/status >/dev/null 2>&1; then
   echo "[start] Selenium did not become ready" >&2
   exit 1
 fi
-
-echo "[start] starting nginx with HTTP basic-auth protection"
-nginx -c /tmp/nginx.conf -g 'daemon off;' &
-NGINX_PID=$!
 
 echo "[start] starting multi-tab keepalive"
 python3 /opt/keepalive.py &

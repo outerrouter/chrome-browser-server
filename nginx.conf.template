@@ -23,6 +23,13 @@ http {
         auth_basic "Chrome Server";
         auth_basic_user_file /tmp/nginx.htpasswd;
 
+        # Render's health probe must work before Selenium finishes booting.
+        location = /healthz {
+            auth_basic off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
         location /wd/hub/ {
             proxy_pass http://127.0.0.1:4444/wd/hub/;
             proxy_set_header Host $host;
