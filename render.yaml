@@ -23,3 +23,7 @@ services:
         value: "1440"
       - key: SE_SCREEN_HEIGHT
         value: "900"
+      - key: SE_RECORD_VIDEO
+        value: "false"
+      - key: SE_VIDEO_RECORDING
+        value: "false"

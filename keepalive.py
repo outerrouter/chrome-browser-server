@@ -22,7 +22,7 @@ def request(method, path, payload=None):
         method=method,
         headers={"Content-Type": "application/json", "Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=30) as response:
+    with urllib.request.urlopen(req, timeout=120) as response:
         return json.loads(response.read().decode() or "{}")
 
 
