@@ -16,7 +16,9 @@ printf '%s\n' "${BROWSER_PANEL_PASSWORD}" | htpasswd -i -B -c /tmp/nginx.htpassw
 chmod 0600 /tmp/nginx.htpasswd
 
 echo "[start] rendering nginx config on port ${PORT}"
-envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf
+# Use sed instead of envsubst: nginx itself needs variables such as $host and
+# $proxy_add_x_forwarded_for, which must not be expanded by the shell helper.
+sed "s/\${PORT}/${PORT}/g" /etc/nginx/nginx.conf.template > /tmp/nginx.conf
 
 cleanup() {
   echo "[start] stopping child processes"
