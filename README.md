@@ -12,6 +12,21 @@
 - `SE_VNC_PASSWORD`: VNC password; না দিলে `BROWSER_PANEL_PASSWORD` ব্যবহার হবে
 - `KEEPALIVE_INTERVAL_SECONDS`: Selenium health-check interval
 
+## Timed Render watchdog
+
+The public GitHub repository includes `.github/workflows/render-watchdog.yml`. It runs every 5 minutes and requests the public `/healthz` endpoint only while a timed window is active.
+
+To start it:
+
+1. Open GitHub → **Actions** → **Render timed watchdog**.
+2. Choose **Run workflow**.
+3. Enter `duration_minutes`, for example `60` for one hour or `720` for twelve hours.
+4. To disable it immediately, run the workflow with `0`.
+
+The workflow stores only an expiry timestamp as a GitHub Actions repository variable; it does not store the browser password. The watchdog is external because a normal Manus/Render autoscale request cannot keep a background timer alive after the page is closed.
+
+This is a best-effort wake-up mechanism, not a guarantee that Render Free will ignore its sleep, anti-abuse, or service-initiated-traffic policies. A paid always-on Render instance or a small VM is required for a strict 24/7 guarantee.
+
 ## Local run
 
 ```bash
