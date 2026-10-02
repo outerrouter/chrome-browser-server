@@ -80,4 +80,73 @@ def browser_health()->dict[str,Any]:
     try:
         selenium=value(request("GET","/status")); return {"selenium_ready":bool(selenium.get("ready",False)) if isinstance(selenium,dict) else True,"browser_session":bool(active_session()),"timestamp":int(time.time())}
     except Exception as exc: return {"selenium_ready":False,"browser_session":False,"error":str(exc)}
+@mcp.tool()
+def cdp_status() -> dict[str, Any]:
+    """Check whether the running Chrome exposes a local CDP endpoint."""
+    endpoint = os.getenv("CDP_ENDPOINT", "http://127.0.0.1:9222")
+    try:
+        with urllib.request.urlopen(endpoint + "/json/version", timeout=5) as response:
+            data = json.loads(response.read().decode())
+        return {"available": True, "browser": data.get("Browser"), "webSocketDebuggerUrl_present": bool(data.get("webSocketDebuggerUrl"))}
+    except Exception as exc:
+        return {"available": False, "error": str(exc)}
+
+
+@mcp.tool()
+def accessibility_snapshot(max_chars: int = 30000) -> str:
+    """Return an accessibility-oriented page snapshot through Playwright over CDP."""
+    if async_playwright is None:
+        raise RuntimeError("Playwright package is not installed.")
+    import asyncio
+    async def run():
+        async with async_playwright() as pw:
+            browser = await pw.chromium.connect_over_cdp(os.getenv("CDP_ENDPOINT", "http://127.0.0.1:9222"))
+            contexts = browser.contexts
+            if not contexts or not contexts[0].pages:
+                return "No browser page is available."
+            page = contexts[0].pages[0]
+            # ARIA snapshot is structured text and avoids exposing browser storage.
+            try:
+                result = await page.locator("body").aria_snapshot(timeout=5000)
+            except Exception:
+                result = await page.locator("body").inner_text(timeout=5000)
+            await browser.close()
+            return result[:max(100, min(max_chars, 60000))]
+    return asyncio.run(run())
+
+
+@mcp.tool()
+def click_text(text: str) -> dict[str, Any]:
+    """Click a visible element by exact text using Playwright over CDP."""
+    if async_playwright is None:
+        raise RuntimeError("Playwright package is not installed.")
+    import asyncio
+    async def run():
+        async with async_playwright() as pw:
+            browser = await pw.chromium.connect_over_cdp(os.getenv("CDP_ENDPOINT", "http://127.0.0.1:9222"))
+            page = browser.contexts[0].pages[0]
+            locator = page.get_by_text(text, exact=True).first
+            await locator.click(timeout=10000)
+            result = {"url": page.url, "title": await page.title()}
+            await browser.close()
+            return result
+    return asyncio.run(run())
+
+
+@mcp.tool()
+def fill_label(label: str, value: str) -> dict[str, Any]:
+    """Fill a visible form field by label. Sensitive authentication values should not be sent here."""
+    if async_playwright is None:
+        raise RuntimeError("Playwright package is not installed.")
+    import asyncio
+    async def run():
+        async with async_playwright() as pw:
+            browser = await pw.chromium.connect_over_cdp(os.getenv("CDP_ENDPOINT", "http://127.0.0.1:9222"))
+            page = browser.contexts[0].pages[0]
+            await page.get_by_label(label, exact=True).fill(value)
+            result = {"url": page.url, "title": await page.title()}
+            await browser.close()
+            return result
+    return asyncio.run(run())
+
 if __name__=="__main__": mcp.run(transport="streamable-http",host="0.0.0.0",port=int(os.getenv("MCP_PORT","8090")),json_response=True,stateless_http=True)
