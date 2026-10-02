@@ -32,7 +32,7 @@ def create_session():
             "alwaysMatch": {
                 "browserName": "chrome",
                 "goog:chromeOptions": {
-                    "args": ["--disable-dev-shm-usage", "--no-first-run", "--no-default-browser-check"]
+                    "args": ["--disable-dev-shm-usage", "--no-first-run", "--no-default-browser-check", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9222", "--user-data-dir=/home/seluser/chrome-profile"]
                 },
             }
         }
