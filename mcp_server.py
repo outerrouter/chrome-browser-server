@@ -5,6 +5,7 @@ It exposes browser operations only; no shell execution or credential extraction.
 """
 import json, os, time, urllib.request
 from typing import Any
+from agent_runtime import manager
 from mcp.server.mcpserver import MCPServer
 try:\n    from playwright.async_api import async_playwright\nexcept ImportError:\n    async_playwright = None\nBASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
 TIMEOUT=float(os.getenv("MCP_BROWSER_TIMEOUT_SECONDS","30"))
@@ -148,5 +149,39 @@ def fill_label(label: str, value: str) -> dict[str, Any]:
             await browser.close()
             return result
     return asyncio.run(run())
+
+@mcp.tool()
+def agent_run(goal: str, plan_json: str = "") -> dict[str, Any]:
+    """Start a background Planner -> Executor -> Verifier browser task.
+    
+    plan_json is optional JSON array of safe actions: navigate, refresh,
+    click_text, fill_label, wait, snapshot, verify, approval.
+    Authentication secrets, OTPs and security challenges are not accepted.
+    """
+    steps = None
+    if plan_json.strip():
+        steps = json.loads(plan_json)
+    return manager.start(goal, steps)
+
+@mcp.tool()
+def agent_status(task_id: str) -> dict[str, Any]:
+    """Return the current state, plan, results and approval state of an agent task."""
+    return manager.status(task_id)
+
+@mcp.tool()
+def agent_approve(task_id: str) -> dict[str, Any]:
+    """Resume a task that is explicitly waiting for human approval."""
+    return manager.approve(task_id)
+
+@mcp.tool()
+def agent_pause(task_id: str) -> dict[str, Any]:
+    """Pause a running agent task before its next step."""
+    return manager.pause(task_id)
+
+@mcp.tool()
+def agent_stop(task_id: str) -> dict[str, Any]:
+    """Stop an agent task."""
+    return manager.stop(task_id)
+
 
 if __name__=="__main__": mcp.run(transport="streamable-http",host="0.0.0.0",port=int(os.getenv("MCP_PORT","8090")),json_response=True,stateless_http=True)
