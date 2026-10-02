@@ -66,3 +66,20 @@ Render Free web services **15 মিনিট inbound traffic না থাক�
 - `KEEPALIVE_URLS`-এ password বা private token দেওয়া URL রাখবেন না।
 - Public service হলে long random password এবং private access/IP allowlist ব্যবহার করুন।
 - এই browser server personal Chrome নয়; server-এর ভিতরের আলাদা Chromium profile।
+
+## MCP control plane
+
+The server exposes a Streamable HTTP MCP endpoint at `/mcp`. It controls the already-running Selenium/Chromium session; it does not create a second browser session.
+
+Available MCP tools include:
+- `browser_status` and `browser_health`
+- `list_tabs`, `switch_tab`, `open_tab`, `close_tab`
+- `navigate` and `refresh_page`
+- `page_text`
+
+The endpoint is protected by the same HTTP Basic Auth credentials as the browser panel. Use a long random password and keep it in your hosting provider's secret environment variables. Do not put cookies, passwords, OAuth tokens, or API keys into MCP tool arguments.
+
+Example endpoint after deployment:
+`https://YOUR-SERVICE.example.com/mcp`
+
+The current implementation uses the official MCP Python SDK v2 and Streamable HTTP. The SDK v2 line uses `MCPServer`; Streamable HTTP is the recommended production transport for remote MCP servers.
