@@ -31,6 +31,25 @@ class EventBus:
 
 events=EventBus()
 
+def _llm_next(goal, observation, history):
+    if not (LLM_BASE and LLM_KEY and LLM_MODEL):
+        return None
+    system="Return ONLY one JSON object. Allowed actions: navigate(url), click_text(text), fill_label(label,value), wait(seconds), refresh, approval(reason), done. Use exact visible button/link text. Never handle passwords, OTPs, tokens or security challenges; use approval."
+    body={"model":LLM_MODEL,"messages":[{"role":"system","content":system},{"role":"user","content":json.dumps({"goal":goal,"observation":observation,"recent_steps":history[-6:]},ensure_ascii=False)}],"temperature":0.1}
+    req=urllib.request.Request(LLM_BASE+"/chat/completions",data=json.dumps(body).encode(),method="POST",headers={"Content-Type":"application/json","Authorization":"Bearer "+LLM_KEY})
+    with urllib.request.urlopen(req,timeout=45) as resp:
+        data=json.loads(resp.read().decode())
+    raw=data["choices"][0]["message"]["content"].strip()
+    step=json.loads(raw)
+    if not isinstance(step,dict) or "action" not in step:
+        raise ValueError("Planner returned invalid action")
+    return step
+
+def _observe_page():
+    s=_sid()
+    js='return {url:location.href,title:document.title,text:(document.body?.innerText||"").slice(0,10000),buttons:[...document.querySelectorAll("button,a,[role=button],input[type=submit]")].slice(0,80).map(e=>(e.innerText||e.value||e.getAttribute("aria-label")||"").trim()).filter(Boolean),fields:[...document.querySelectorAll("input,textarea,select")].slice(0,40).map(e=>({label:e.getAttribute("aria-label")||e.name||e.placeholder||e.type||"field",type:e.type||e.tagName.toLowerCase()}))};'
+    return _request("POST",f"/session/{s}/execute/sync",{"script":js,"args":[]})
+
 def _request(method,path,payload=None):
     body=None if payload is None else json.dumps(payload).encode()
     req=urllib.request.Request(BASE+path,data=body,method=method,headers={"Content-Type":"application/json","Accept":"application/json"})
