@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>24/7 Chrome Control</title>
+<style>
+body{font:16px system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 18px;background:#0b1020;color:#e8eefc}
+.card{background:#151c31;border:1px solid #29334f;border-radius:14px;padding:18px;margin:14px 0}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#26314c}
+pre{white-space:pre-wrap;overflow:auto}
+button{padding:10px 14px;border:0;border-radius:9px;margin-right:8px;cursor:pointer}
+small{opacity:.7}
+</style></head><body>
+<h1>24/7 Chrome Control</h1>
+<div class="card"><span id="state" class="badge">checking…</span><p id="url">—</p><p id="title">—</p><p id="tabs">—</p></div>
+<div class="card"><h3>Current page text</h3><pre id="text">Loading…</pre></div>
+<div class="card"><small>This dashboard is intentionally read-only. Browser actions are exposed through the protected MCP endpoint.</small></div>
+<script>
+async function load(){
+ try{
+  const r=await fetch('/status'); const s=await r.json();
+  const v=s.value||s;
+  document.querySelector('#state').textContent=v.ready?'Selenium ready':'Selenium unavailable';
+ }catch(e){document.querySelector('#state').textContent='offline'}
+ try{
+  const r=await fetch('/wd/hub/status'); const s=await r.json(); const v=s.value||s;
+  document.querySelector('#state').textContent=(v.ready?'Browser service ready':'Browser service unavailable');
+ }catch(e){}
+}
+load(); setInterval(load,5000);
+</script></body></html>
