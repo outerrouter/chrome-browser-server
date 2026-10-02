@@ -8,6 +8,7 @@ import urllib.request
 BASE="http://127.0.0.1:4444/wd/hub"
 MAX_STEPS=int(os.getenv("AGENT_MAX_STEPS","100"))
 MAX_EVENTS=500
+ACTION_RETRIES=max(0,int(os.getenv("AGENT_ACTION_RETRIES","2")))
 LLM_BASE=os.getenv("AGENT_LLM_BASE_URL","").rstrip("/")
 LLM_KEY=os.getenv("AGENT_LLM_API_KEY","")
 LLM_MODEL=os.getenv("AGENT_LLM_MODEL","")
@@ -34,7 +35,7 @@ events=EventBus()
 def _llm_next(goal, observation, history):
     if not (LLM_BASE and LLM_KEY and LLM_MODEL):
         return None
-    system="Return ONLY one JSON object. Allowed actions: navigate(url), click_text(text), fill_label(label,value), wait(seconds), refresh, approval(reason), done. Use exact visible button/link text. Never handle passwords, OTPs, tokens or security challenges; use approval."
+    system="Return ONLY one JSON object. Allowed actions: navigate(url), click_text(text), fill_label(label,value), wait(seconds), refresh, approval(reason), done. Use exact visible button/link text from the observation. Re-check the current page after every action. Never handle passwords, OTPs, tokens or security challenges; use approval."
     body={"model":LLM_MODEL,"messages":[{"role":"system","content":system},{"role":"user","content":json.dumps({"goal":goal,"observation":observation,"recent_steps":history[-6:]},ensure_ascii=False)}],"temperature":0.1}
     req=urllib.request.Request(LLM_BASE+"/chat/completions",data=json.dumps(body).encode(),method="POST",headers={"Content-Type":"application/json","Authorization":"Bearer "+LLM_KEY})
     with urllib.request.urlopen(req,timeout=45) as resp:
@@ -47,7 +48,7 @@ def _llm_next(goal, observation, history):
 
 def _observe_page():
     s=_sid()
-    js='return {url:location.href,title:document.title,text:(document.body?.innerText||"").slice(0,10000),buttons:[...document.querySelectorAll("button,a,[role=button],input[type=submit]")].slice(0,80).map(e=>(e.innerText||e.value||e.getAttribute("aria-label")||"").trim()).filter(Boolean),fields:[...document.querySelectorAll("input,textarea,select")].slice(0,40).map(e=>({label:e.getAttribute("aria-label")||e.name||e.placeholder||e.type||"field",type:e.type||e.tagName.toLowerCase()}))};'
+    js='return {url:location.href,title:document.title,text:(document.body?.innerText||"").slice(0,10000),buttons:[...document.querySelectorAll("button,a,[role=button],input[type=submit]")].slice(0,80).map((e,i)=>({ref:"e"+(i+1),text:(e.innerText||e.value||e.getAttribute("aria-label")||"").trim(),tag:e.tagName.toLowerCase(),role:e.getAttribute("role")||""})).filter(x=>x.text),fields:[...document.querySelectorAll("input,textarea,select")].slice(0,40).map(e=>({label:e.getAttribute("aria-label")||e.name||e.placeholder||e.type||"field",type:e.type||e.tagName.toLowerCase()}))};'
     return _request("POST",f"/session/{s}/execute/sync",{"script":js,"args":[]})
 
 def _request(method,path,payload=None):
@@ -100,6 +101,8 @@ def _plan(goal,steps):
     if urls:
         u=urls[0].rstrip(".,)")
         return [{"action":"navigate","url":u},{"action":"verify","contains_url":u}]
+    if LLM_BASE and LLM_KEY and LLM_MODEL:
+        return []
     return [{"action":"snapshot"}]
 
 def _verify(step,result):
@@ -143,6 +146,10 @@ class AgentManager:
                 with self.lock:t["status"]="completed";t["finished_at"]=int(time.time());t["current_action"]=None
                 events.emit(task_id,"completed","✅ কাজ সম্পূর্ণ হয়েছে। সব ধাপ শেষ এবং verifier pass করেছে।",step=i,total=len(plan),url=_url()); return
             step=plan[i]; action=step.get("action")
+            if action=="done":
+                with self.lock:t["status"]="completed";t["finished_at"]=int(time.time());t["current_action"]=None
+                events.emit(task_id,"completed","✅ Agent reports the goal is complete after verification.",step=i,total=len(plan),url=_url())
+                return
             detail=""
             if action=="click_text": detail=" → button/text: "+str(step.get("text",""))
             elif action=="navigate": detail=" → URL: "+str(step.get("url",""))
@@ -154,16 +161,26 @@ class AgentManager:
                 if action=="approval":
                     with self.lock:t["status"]="paused";t["approval_required"]=step.get("reason","Human approval required")
                     events.emit(task_id,"approval_required","🟠 আপনার সাহায্য দরকার। Browser-এ প্রয়োজনীয় action শেষ করুন, তারপর Approve করুন।",step=i,total=len(plan),action=action,url=_url()); return
-                if action=="snapshot": result={"text":_text()}
-                elif action=="navigate": result=_navigate(str(step["url"]))
-                elif action=="refresh": result=_refresh()
-                elif action=="click_text": result=_click_text(str(step["text"]))
-                elif action=="fill_label": result=_fill(str(step["label"]),str(step.get("value","")))
-                elif action=="wait": time.sleep(min(30,max(0,float(step.get("seconds",1)))));result={"waited":step.get("seconds",1)}
-                elif action=="verify": result=_verify(step,{})
-                else: raise ValueError(f"Unsupported action: {action}")
-                verification=_verify(step,result)
-                if not verification.get("passed",True): raise RuntimeError(f"Verifier failed: {verification}")
+                for attempt in range(ACTION_RETRIES+1):
+                    try:
+                        if action=="snapshot": result={"text":_text()}
+                        elif action=="navigate": result=_navigate(str(step["url"]))
+                        elif action=="refresh": result=_refresh()
+                        elif action=="click_text": result=_click_text(str(step["text"]))
+                        elif action=="fill_label": result=_fill(str(step["label"]),str(step.get("value","")))
+                        elif action=="wait": time.sleep(min(30,max(0,float(step.get("seconds",1)))));result={"waited":step.get("seconds",1)}
+                        elif action=="verify": result=_verify(step,{})
+                        else: raise ValueError(f"Unsupported action: {action}")
+                        verification=_verify(step,result)
+                        if not verification.get("passed",True): raise RuntimeError(f"Verifier failed: {verification}")
+                        break
+                    except PermissionError: raise
+                    except Exception as exc:
+                        if attempt>=ACTION_RETRIES: raise
+                        events.emit(task_id,"retry",f"🟡 Step {i+1} retry {attempt+1}/{ACTION_RETRIES}: {exc}",step=i,total=len(plan),action=action,url=_url())
+                        try: _refresh()
+                        except Exception: pass
+                        time.sleep(min(3,attempt+1))
                 with self.lock:
                     t["results"].append({"step":i,"action":action,"result":result,"verification":verification});t["step_index"]=i+1;t["current_url"]=_url()
                 events.emit(task_id,"step_completed",f"🟢 Step {i+1}/{len(plan)} complete: {action}",step=i+1,total=len(plan),action=action,result=result,verification=verification,url=_url())
@@ -172,7 +189,7 @@ class AgentManager:
                 events.emit(task_id,"approval_required","🟠 Security/authentication step detected. Human approval required; secret values are never handled by the agent.",step=i,total=len(plan),action=action,url=_url()); return
             except Exception as exc:
                 with self.lock:t["status"]="failed";t["error"]=str(exc);t["finished_at"]=int(time.time())
-                events.emit(task_id,"failed",f"🔴 Step {i+1} failed: {exc}",step=i,total=len(plan),action=action,url=_url()); return
+                events.emit(task_id,"failed",f"🔴 Step {i+1} failed after retries: {exc}",step=i,total=len(plan),action=action,url=_url()); return
 
     def approve(self,task_id):
         with self.lock:
