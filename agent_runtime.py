@@ -8,6 +8,9 @@ import urllib.request
 BASE="http://127.0.0.1:4444/wd/hub"
 MAX_STEPS=int(os.getenv("AGENT_MAX_STEPS","100"))
 MAX_EVENTS=500
+LLM_BASE=os.getenv("AGENT_LLM_BASE_URL","").rstrip("/")
+LLM_KEY=os.getenv("AGENT_LLM_API_KEY","")
+LLM_MODEL=os.getenv("AGENT_LLM_MODEL","")
 
 class EventBus:
     def __init__(self):
@@ -108,6 +111,16 @@ class AgentManager:
                 if t["status"]=="paused": return
                 i=t["step_index"]; plan=t["plan"]
             if i>=len(plan):
+                if LLM_BASE and LLM_KEY and LLM_MODEL:
+                    try:
+                        step=_llm_next(t["goal"],_observe_page(),t["results"])
+                        if step is not None:
+                            plan.append(step)
+                            events.emit(task_id,"replanned","🧠 Planner observed the browser and created the next step.",step=i,total=max(i+1,len(plan)),action=step.get("action"),url=_url())
+                            continue
+                    except Exception as exc:
+                        with self.lock:t["status"]="failed";t["error"]="Planner error: "+str(exc);t["finished_at"]=int(time.time())
+                        events.emit(task_id,"failed","🔴 Planner failed: "+str(exc),step=i,total=max(i+1,len(plan)),url=_url()); return
                 with self.lock:t["status"]="completed";t["finished_at"]=int(time.time());t["current_action"]=None
                 events.emit(task_id,"completed","✅ কাজ সম্পূর্ণ হয়েছে। সব ধাপ শেষ এবং verifier pass করেছে।",step=i,total=len(plan),url=_url()); return
             step=plan[i]; action=step.get("action")
