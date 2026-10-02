@@ -17,12 +17,6 @@ services:
         value: "30"
       - key: PUBLIC_BASE_URL
         sync: false
-      - key: AGENT_LLM_BASE_URL
-        sync: false
-      - key: AGENT_LLM_MODEL
-        sync: false
-      - key: AGENT_LLM_API_KEY
-        sync: false
       - key: AGENT_MAX_STEPS
         value: "100"
       - key: AGENT_ACTION_RETRIES
