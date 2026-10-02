@@ -16,7 +16,7 @@ small{opacity:.7}
 <script>
 async function load(){
  try{
-  const r=await fetch('/status'); const s=await r.json();
+  const r=await fetch('/api/status'); const s=await r.json();
   const v=s.value||s;
   document.querySelector('#state').textContent=v.ready?'Selenium ready':'Selenium unavailable';
  }catch(e){document.querySelector('#state').textContent='offline'}
