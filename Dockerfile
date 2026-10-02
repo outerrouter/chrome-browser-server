@@ -12,7 +12,7 @@ RUN apt-get update \
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /start.sh
 COPY keepalive.py /opt/keepalive.py
-COPY mcp_server.py /opt/mcp_server.py
+COPY mcp_server.py /opt/mcp_server.py\nCOPY dashboard /opt/dashboard
 
 RUN chmod 0755 /start.sh /opt/keepalive.py /opt/mcp_server.py
 
