@@ -7,7 +7,10 @@ import json, os, time, urllib.request
 from typing import Any
 from agent_runtime import manager
 from mcp.server.mcpserver import MCPServer, Context
-try:\n    from playwright.async_api import async_playwright\nexcept ImportError:\n    async_playwright = None\nBASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
+try:
+    from playwright.async_api import async_playwright
+except ImportError:
+    async_playwright = None\nBASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
 TIMEOUT=float(os.getenv("MCP_BROWSER_TIMEOUT_SECONDS","30"))
 mcp=MCPServer("24/7 Chrome Browser Control", instructions="Control the server-side Chromium session through browser tools. Long-running agent tasks emit live progress/events; human approval is required for authentication and security checks. Never request or expose passwords, cookies, access tokens, or secrets.")
 PUBLIC_BASE=os.getenv("PUBLIC_BASE_URL","").rstrip("/")
