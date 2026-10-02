@@ -3,7 +3,8 @@ FROM selenium/standalone-chrome:latest
 USER root
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx gettext-base python3 curl apache2-utils \
+    && apt-get install -y --no-install-recommends nginx gettext-base python3 python3-pip curl apache2-utils \
+    && python3 -m pip install --no-cache-dir --break-system-packages "mcp[cli]>=2,<3" \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /tmp/nginx_client_temp /tmp/nginx_proxy_temp /tmp/nginx_fastcgi_temp /tmp/nginx_uwsgi_temp /tmp/nginx_scgi_temp \
     && chown -R seluser:seluser /etc/nginx /tmp/nginx_*
@@ -11,8 +12,9 @@ RUN apt-get update \
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /start.sh
 COPY keepalive.py /opt/keepalive.py
+COPY mcp_server.py /opt/mcp_server.py
 
-RUN chmod 0755 /start.sh /opt/keepalive.py
+RUN chmod 0755 /start.sh /opt/keepalive.py /opt/mcp_server.py
 
 USER seluser
 
@@ -27,7 +29,9 @@ ENV PORT=8080 \
     SE_NODE_MAX_SESSIONS=1 \
     KEEPALIVE_URLS=https://example.com \
     KEEPALIVE_INTERVAL_SECONDS=60 \
-    BROWSER_DURATION_MINUTES=0
+    BROWSER_DURATION_MINUTES=0 \
+    MCP_PORT=8090 \
+    MCP_BROWSER_TIMEOUT_SECONDS=30
 
 EXPOSE 8080
 
