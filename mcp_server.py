@@ -6,7 +6,7 @@ It exposes browser operations only; no shell execution or credential extraction.
 import json, os, time, urllib.request
 from typing import Any
 from mcp.server.mcpserver import MCPServer
-BASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
+try:\n    from playwright.async_api import async_playwright\nexcept ImportError:\n    async_playwright = None\nBASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
 TIMEOUT=float(os.getenv("MCP_BROWSER_TIMEOUT_SECONDS","30"))
 mcp=MCPServer("24/7 Chrome Browser Control", instructions="Control the server-side Chromium session through browser tools. Never request or expose passwords, cookies, access tokens, or secrets.")
 def request(method: str, path: str, payload: dict[str,Any]|None=None)->Any:
