@@ -4,7 +4,7 @@ USER root
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx gettext-base python3 python3-pip curl apache2-utils \
-    && python3 -m pip install --no-cache-dir --break-system-packages "mcp[cli]>=2,<3" \
+    && python3 -m pip install --no-cache-dir --break-system-packages "mcp[cli]>=2,<3" "playwright>=1.55,<2 \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /tmp/nginx_client_temp /tmp/nginx_proxy_temp /tmp/nginx_fastcgi_temp /tmp/nginx_uwsgi_temp /tmp/nginx_scgi_temp \
     && chown -R seluser:seluser /etc/nginx /tmp/nginx_*
@@ -31,7 +31,8 @@ ENV PORT=8080 \
     KEEPALIVE_INTERVAL_SECONDS=60 \
     BROWSER_DURATION_MINUTES=0 \
     MCP_PORT=8090 \
-    MCP_BROWSER_TIMEOUT_SECONDS=30
+    MCP_BROWSER_TIMEOUT_SECONDS=30 \
+    CDP_ENDPOINT=http://127.0.0.1:9222
 
 EXPOSE 8080
 
