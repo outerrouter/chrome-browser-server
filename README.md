@@ -59,6 +59,30 @@ Render Free web services **15 মিনিট inbound traffic না থাক�
 
 সত্যিকারের always-on Chrome-এর জন্য Render paid always-on instance বা একটি always-on VM ব্যবহার করুন। Chrome/noVNC-এর জন্য কমপক্ষে 2 GB RAM বেশি নিরাপদ।
 
+## Agent runtime
+
+The MCP layer now includes a lightweight background Planner -> Executor -> Verifier runtime:
+
+- `agent_run(goal, plan_json)` starts a task without blocking the MCP request.
+- `agent_status(task_id)` returns state, current step, results and verification.
+- `agent_pause(task_id)`, `agent_approve(task_id)`, and `agent_stop(task_id)` control the task lifecycle.
+- Supported plan actions: `navigate`, `refresh`, `click_text`, `fill_label`, `wait`, `snapshot`, `verify`, and explicit `approval`.
+- Tasks stop for human approval when an authentication/security field is detected. Passwords, OTPs, tokens and CAPTCHA/security challenges are not automated or stored.
+- The executor has a hard step limit and only allows HTTP(S) navigation.
+- This is the orchestration layer; an external LLM/model router can later produce the structured plan, while the browser executor remains constrained.
+
+Example `plan_json`:
+
+```json
+[
+  {"action":"navigate","url":"https://example.com"},
+  {"action":"snapshot"},
+  {"action":"verify","contains_url":"example.com"}
+]
+```
+
+The runtime is intentionally not a shell/RCE agent. Keep model-generated plans constrained to browser actions and require human approval for sensitive authentication flows.
+
 ## Security
 
 - Password source code-এ hardcode করবেন না; Render secret বা local `.env` ব্যবহার করুন।
