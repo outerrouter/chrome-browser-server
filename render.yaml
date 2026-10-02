@@ -13,6 +13,8 @@ services:
         sync: false
       - key: SE_VNC_PASSWORD
         sync: false
+      - key: MCP_BROWSER_TIMEOUT_SECONDS
+        value: "30"
       - key: KEEPALIVE_URLS
         value: https://example.com
       - key: KEEPALIVE_INTERVAL_SECONDS
