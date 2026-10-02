@@ -1,0 +1,3 @@
+# MCP control plane for the browser server.
+# MCP Python SDK v2 is the current stable line.
+mcp[cli]>=2,<3
