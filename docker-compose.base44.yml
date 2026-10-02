@@ -1,0 +1,26 @@
+services:
+  chrome-server:
+    build: .
+    ports:
+      - "3000:8080"
+    shm_size: "2gb"
+    environment:
+      BROWSER_PANEL_USER: "browser"
+      KEEPALIVE_URLS: "https://example.com"
+      KEEPALIVE_INTERVAL_SECONDS: "60"
+      BROWSER_DURATION_MINUTES: "0"
+      SE_SCREEN_WIDTH: "1440"
+      SE_SCREEN_HEIGHT: "900"
+    env_file:
+      - /run/base44/app.env
+    volumes:
+      - ./start.sh:/start.sh:ro
+      - ./keepalive.py:/opt/keepalive.py:ro
+      - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    restart: on-failure

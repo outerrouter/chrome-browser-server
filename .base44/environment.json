@@ -1,0 +1,19 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/healthz",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "BROWSER_PANEL_PASSWORD",
+      "description": "Password for HTTP basic-auth and noVNC access. Set a long random password for production use.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "SE_VNC_PASSWORD",
+      "description": "VNC password for the Chrome browser viewer. Defaults to BROWSER_PANEL_PASSWORD if not set separately.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    }
+  ]
+}
