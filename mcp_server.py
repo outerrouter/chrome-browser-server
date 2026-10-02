@@ -10,7 +10,8 @@ from mcp.server.mcpserver import MCPServer, Context
 try:
     from playwright.async_api import async_playwright
 except ImportError:
-    async_playwright = None\nBASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
+    async_playwright = None
+BASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
 TIMEOUT=float(os.getenv("MCP_BROWSER_TIMEOUT_SECONDS","30"))
 mcp=MCPServer("24/7 Chrome Browser Control", instructions="Control the server-side Chromium session through browser tools. Long-running agent tasks emit live progress/events; human approval is required for authentication and security checks. Never request or expose passwords, cookies, access tokens, or secrets.")
 PUBLIC_BASE=os.getenv("PUBLIC_BASE_URL","").rstrip("/")
@@ -115,7 +116,7 @@ def accessibility_snapshot(max_chars: int = 30000) -> str:
                 result = await page.locator("body").aria_snapshot(timeout=5000)
             except Exception:
                 result = await page.locator("body").inner_text(timeout=5000)
-            await browser.close()
+
             return result[:max(100, min(max_chars, 60000))]
     return asyncio.run(run())
 
@@ -133,7 +134,7 @@ def click_text(text: str) -> dict[str, Any]:
             locator = page.get_by_text(text, exact=True).first
             await locator.click(timeout=10000)
             result = {"url": page.url, "title": await page.title()}
-            await browser.close()
+
             return result
     return asyncio.run(run())
 
@@ -150,7 +151,7 @@ def fill_label(label: str, value: str) -> dict[str, Any]:
             page = browser.contexts[0].pages[0]
             await page.get_by_label(label, exact=True).fill(value)
             result = {"url": page.url, "title": await page.title()}
-            await browser.close()
+
             return result
     return asyncio.run(run())
 
