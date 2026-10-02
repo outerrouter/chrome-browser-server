@@ -6,10 +6,11 @@ It exposes browser operations only; no shell execution or credential extraction.
 import json, os, time, urllib.request
 from typing import Any
 from agent_runtime import manager
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import MCPServer, Context
 try:\n    from playwright.async_api import async_playwright\nexcept ImportError:\n    async_playwright = None\nBASE=os.getenv("SELENIUM_URL","http://127.0.0.1:4444/wd/hub").rstrip("/")
 TIMEOUT=float(os.getenv("MCP_BROWSER_TIMEOUT_SECONDS","30"))
-mcp=MCPServer("24/7 Chrome Browser Control", instructions="Control the server-side Chromium session through browser tools. Never request or expose passwords, cookies, access tokens, or secrets.")
+mcp=MCPServer("24/7 Chrome Browser Control", instructions="Control the server-side Chromium session through browser tools. Long-running agent tasks emit live progress/events; human approval is required for authentication and security checks. Never request or expose passwords, cookies, access tokens, or secrets.")
+PUBLIC_BASE=os.getenv("PUBLIC_BASE_URL","").rstrip("/")
 def request(method: str, path: str, payload: dict[str,Any]|None=None)->Any:
     body=None if payload is None else json.dumps(payload).encode()
     req=urllib.request.Request(BASE+path,data=body,method=method,headers={"Content-Type":"application/json","Accept":"application/json"})
@@ -184,4 +185,58 @@ def agent_stop(task_id: str) -> dict[str, Any]:
     return manager.stop(task_id)
 
 
-if __name__=="__main__": mcp.run(transport="streamable-http",host="0.0.0.0",port=int(os.getenv("MCP_PORT","8090")),json_response=True,stateless_http=True)
+@mcp.tool()
+def agent_events(task_id: str, after_seq: int = 0) -> list[dict[str, Any]]:
+    """Return live task events after a sequence number. Events include step, action, browser URL and human-approval state."""
+    items = manager.events_since(task_id, after_seq)
+    if PUBLIC_BASE:
+        for item in items:
+            item["takeover_link"] = PUBLIC_BASE + "/"
+    return items
+
+
+@mcp.tool()
+async def agent_watch(task_id: str, ctx: Context, poll_seconds: float = 1.0) -> dict[str, Any]:
+    """Keep an MCP call open and stream agent step-by-step progress until the task finishes."""
+    import asyncio
+    seq = 0
+    while True:
+        status = manager.status(task_id)
+        events_now = await asyncio.to_thread(manager.wait_events, task_id, seq, max(1.0, min(15.0, poll_seconds)))
+        for event in events_now:
+            seq = max(seq, int(event["seq"]))
+            step = int(event.get("step", status.get("step_index", 0)))
+            total = max(1, int(event.get("total", len(status.get("plan", [])) or 1)))
+            message = event.get("message", "Agent update")
+            if PUBLIC_BASE:
+                message += " | Browser takeover: " + PUBLIC_BASE + "/"
+            try:
+                await ctx.report_progress(min(step, total), total, message)
+            except Exception:
+                pass
+            try:
+                import mcp.types as types
+                await ctx.request_context.session.send_notification(
+                    types.LoggingMessageNotification(
+                        params=types.LoggingMessageNotificationParams(level="info", logger="browser-agent", data=message)
+                    )
+                )
+            except Exception:
+                pass
+        status = manager.status(task_id)
+        if status["status"] in {"completed", "failed", "stopped"}:
+            return {"task": status, "last_seq": seq}
+        if status["status"] == "paused":
+            return {"task": status, "last_seq": seq, "waiting_for_human": True}
+
+
+if __name__=="__main__":
+    mcp.run(
+        transport="streamable-http",
+        host="0.0.0.0",
+        port=int(os.getenv("MCP_PORT","8090")),
+        json_response=False,
+        stateless_http=False,
+        event_store=None,
+        session_idle_timeout=None,
+    )
