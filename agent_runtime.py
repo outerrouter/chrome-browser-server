@@ -1,12 +1,12 @@
 """Background browser-agent runtime with durable in-process task events."""
 from __future__ import annotations
-import json, re, threading, time, uuid
+import json, os, re, threading, time, uuid
 from collections import deque
 from typing import Any
 import urllib.request
 
 BASE="http://127.0.0.1:4444/wd/hub"
-MAX_STEPS=50
+MAX_STEPS=int(os.getenv("AGENT_MAX_STEPS","100"))
 MAX_EVENTS=500
 
 class EventBus:
